@@ -11,33 +11,23 @@ pub fn main() !void {
 fn isSafe(report: []const u8, butIgnore: ?usize) bool {
     var desc = false;
     var asc = false;
-    var highDiff: u32 = 0;
-    var lowDiff: u32 = std.math.maxInt(u32);
-    var valIt = std.mem.splitSequence(u8, report, " ");
+    var levels = std.mem.splitSequence(u8, report, " ");
     var pos: usize = 0;
-    if (butIgnore) |iPos| {
-        if (pos == iPos) _ = valIt.next();
-    }
-    var currLevel = std.fmt.parseInt(u32, valIt.next().?, 10) catch unreachable;
-    while (valIt.next()) |levelStr| {
-        pos += 1;
-        if (butIgnore) |iPos| {
-            if (pos == iPos) continue;
-        }
+    var currLevel: ?u32 = null;
+    while (levels.next()) |levelStr| : (pos += 1) {
+        if (butIgnore) |i| if (pos == i)
+            continue;
         const level = std.fmt.parseInt(u32, levelStr, 10) catch unreachable;
-        var diff: u32 = undefined;
-        if (currLevel < level) {
-            asc = true;
-            diff = level - currLevel;
-        } else {
-            diff = currLevel - level;
-            desc = currLevel > level;
+        if (currLevel) |cl| {
+            const diff = if (cl < level) level - cl else cl - level;
+            asc = asc or cl < level;
+            desc = desc or cl > level;
+            if (desc and asc or diff > 3 or diff < 1)
+                return false;
         }
-        lowDiff = @min(lowDiff, diff);
-        highDiff = @max(highDiff, diff);
         currLevel = level;
     }
-    return !(desc and asc) and highDiff <= 3 and lowDiff >= 1;
+    return true;
 }
 
 fn solve(data: []const u8) u32 {
@@ -56,11 +46,12 @@ fn solve2(data: []const u8) u32 {
     while (lineIt.next()) |line| {
         if (line.len == 0) continue;
         const levels = 1 + std.mem.count(u8, line, " ");
-        var safe = false;
         for (0..levels) |skipzer| {
-            safe = safe or isSafe(line, skipzer);
+            if (isSafe(line, skipzer)) {
+                validReports += 1;
+                break;
+            }
         }
-        if (safe) validReports += 1;
     }
     return validReports;
 }
